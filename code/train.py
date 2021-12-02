@@ -56,7 +56,6 @@ parser.add_argument('--weight_decay',
                     default=0,
                     help="Weight decay factor")
 args = parser.parse_args()
-print(args)
 
 
 def evaluate(user_pred, test_user_list, train_user_list):
@@ -176,7 +175,14 @@ if __name__ == '__main__':
     #random.seed(2020)
     #np.random.seed(2020)
 
-    f_data = '../music/music_data.pkl'
+    data_set = 'music'
+    f_data = '../{}/{}_data.pkl'.format(data_set, data_set)
+    max_len = {'music': 0.995, 'beauty': 0.995, 'ml1m': 0.8}
+    if data_set == 'ml1m':
+        args.n_epochs = 10
+        args.n_batch_size = 256
+        args.lr = 0.00025
+    print(data_set, args)
 
     with open(f_data, 'rb') as f:
         dataset = pickle.load(f)
@@ -188,6 +194,9 @@ if __name__ == '__main__':
         train_item_list = [[] for i in range(item_num)]
         for u,i in train_pair:
             train_item_list[i].append(u)
+        for i in range(len(train_item_list)):   #ml1m存在无交互item
+            if len(train_item_list[i]) == 0:
+                train_item_list[i] = np.random.choice(range(1,user_num), size=1).tolist()
 
         cate_item_dict = {}
         for i,c in item_cate_dict.items():
@@ -208,8 +217,8 @@ if __name__ == '__main__':
     user_aspect_arr, cate_aspect_arr = generate_user_aspect(user_cate_list), generate_cate_aspect(train_pair, item_cate_dict)
 
     user_div_score = np.array(list(statistic_user_div_score(train_user_list, item_cate_dict).values()))
-    max_len_item = sorted([len(lst) for lst in train_user_list])[int(0.995 * user_num)]
-    max_len_user = sorted([len(lst) for lst in train_item_list])[int(0.995 * item_num)]
+    max_len_item = sorted([len(lst) for lst in train_user_list])[int(max_len[data_set] * user_num)]
+    max_len_user = sorted([len(lst) for lst in train_item_list])[int(max_len[data_set] * item_num)]
     model = EDUA(user_num, item_num, cate_num, args.dim, args.margin, args.num_memory, max_len_item, max_len_user)
     model.cuda()
 
@@ -226,7 +235,10 @@ if __name__ == '__main__':
         model.train()
         total_loss = 0
 
-        alpha = np.array([epoch / 2 * args.n_epochs]).repeat(user_num)
+        if data_set == 'ml1m':
+            alpha = 1 - np.array([epoch / (2 * args.n_epochs)]).repeat(user_num)
+        else:
+            alpha = np.array([epoch / (2 * args.n_epochs)]).repeat(user_num)
         #--------------------------train
         for batch_id, batch in enumerate(train_loader):
             assert isinstance(batch[0], torch.LongTensor)

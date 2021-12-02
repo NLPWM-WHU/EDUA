@@ -46,6 +46,11 @@ def generate_randwalk(user_i_list, item_c_list, train_pair, item_num):
     item_u_list = [[] for i in range(item_num)]
     for u, i in train_pair:
         item_u_list[i].append(u)
+    for i in range(len(item_u_list)):
+        if len(item_u_list[i]) == 0:
+            #print(i)
+            item_u_list[i] = np.random.choice(range(1, len(user_i_list)), size=1).tolist()
+
     user_i_list[0] = set([0])
     item_u_list[0] = [0]
 
